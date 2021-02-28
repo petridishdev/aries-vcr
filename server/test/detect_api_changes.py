@@ -2,6 +2,7 @@
 
 import csv
 import json
+import os
 import pip._vendor.requests as requests
 
 queries = {}
@@ -33,7 +34,7 @@ def populate_queries(csvfile):
         tag, desc = parse_comment(rowstr)
         if (tag != '' and desc != ''):
             last = tag
-            queries[tag] = {'desc': desc, 'queries': [], 'entries': []}
+            queries[tag] = {'desc': desc, 'queries': [], 'entries': {}}
             continue
         queries[last]['queries'].append(rowstr)
 
@@ -84,7 +85,29 @@ if __name__ == "__main__":
 
         entry['result'] = res
         entry['result_str'] = json.dumps(res)
-        queries['entity_type']['entries'].append(entry)
+        queries['entity_type']['entries'][source_id] = entry
 
-    with open('local-corp-test-sample-corps.json', 'w') as jsonfile:
-        jsonfile.write(json.dumps(queries))
+    write_path = 'local-corp-test-sample-corps.json'
+    if not os.path.exists(write_path):
+        open(write_path, 'w').close()
+
+    with open(write_path, 'r+') as jsonfile:
+        res = jsonfile.read()
+        if res == '':
+            jsonfile.write(json.dumps(queries))
+        else:
+            changes = {}
+            known = json.loads(res)
+            for k, v in queries['entity_type']['entries'].items():
+                curr = v['result_str']
+                prev = known['entity_type']['entries'][k]['result_str']
+                if curr != prev:
+                    changes[k] = {
+                        'curr': curr,
+                        'prev': prev
+                    }
+
+            if (len(changes.keys())):
+                print('The API has changed')
+                with open('local-corp-test-sample-corps.changes.json', 'w+') as jsonchangefile:
+                    jsonchangefile.write(json.dumps(changes))
