@@ -60,7 +60,7 @@ def remove_dates(obj):
 
 
 def has_timestamp_key(k):
-    return k in ('create_timestamp', 'update_timestamp', 'last_updated')
+    return k in ('create_timestamp', 'update_timestamp', 'last_updated', 'effective_date', 'first_effective_date', 'last_effective_date', 'revoked_date')
 
 
 def has_timestamp_value(k, v):
@@ -72,12 +72,13 @@ if __name__ == "__main__":
         reader = csv.reader(csvfile)
         populate_queries(csvfile)
 
+    # Entity Type
     for query in queries['entity_type']['queries']:
         params = query.split(',')
         source_id = params[0].strip()
         type = params[1].strip()
         entry = {
-            'url': f'http://localhost:8081/api/topic/ident/{type}/{source_id}/formatted',
+            'url': f'http://localhost:8081/api/v3/topic/{type}/{source_id}',
         }
         r = requests.get(entry['url'])
         res = r.json()
@@ -86,6 +87,23 @@ if __name__ == "__main__":
         entry['result'] = res
         entry['result_str'] = json.dumps(res)
         queries['entity_type']['entries'][source_id] = entry
+
+    # Topic/Credential
+    for query in queries['credential']['queries']:
+        params = query.split(',')
+        source_id = params[0].strip()
+        type = params[1].strip()
+        id = params[2].strip()
+        entry = {
+            'url': f'http://localhost:8081/api/topic/{id}/credentialset',
+        }
+        r = requests.get(entry['url'])
+        res = r.json()
+        remove_dates(res)
+
+        entry['result'] = res
+        entry['result_str'] = json.dumps(res)
+        queries['credential']['entries'][source_id] = entry
 
     write_path = 'local-corp-test-sample-corps.json'
     if not os.path.exists(write_path):
@@ -98,14 +116,17 @@ if __name__ == "__main__":
         else:
             changes = {}
             known = json.loads(res)
-            for k, v in queries['entity_type']['entries'].items():
-                curr = v['result_str']
-                prev = known['entity_type']['entries'][k]['result_str']
-                if curr != prev:
-                    changes[k] = {
-                        'curr': curr,
-                        'prev': prev
-                    }
+            for cat in ('entity_type', 'credential'):
+                for k, v in queries[cat]['entries'].items():
+                    curr = v['result_str']
+                    prev = known[cat]['entries'][k]['result_str']
+                    if curr != prev:
+                        if cat not in changes:
+                            changes[cat] = {}
+                        changes[cat][k] = {
+                            'curr': curr,
+                            'prev': prev
+                        }
 
             if (len(changes.keys())):
                 print('The API has changed')

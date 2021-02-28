@@ -322,7 +322,6 @@ def local_name(names=[]):
         return None
 
 
-
 def remote_name(names=[]):
     if len(names) == 0:
         return None
@@ -336,3 +335,93 @@ def remote_name(names=[]):
         LOGGER.error("Exception was raised: " + str(e))
         return None
 
+
+def get_credential_local_name(credential):
+    if not credential.get_local_name():
+        return get_topic_local_name(credential.topic)
+    else:
+        return {
+            "id": credential.get_local_name().id,
+            "text": credential.get_local_name().text or None,
+            "language": credential.get_local_name().language or None,
+            "credential_id": credential.get_local_name().credential_id or None,
+            "type": credential.get_local_name().type or None,
+        }
+
+
+def get_credential_remote_name(credential):
+    if not credential.get_remote_name():
+        return get_topic_remote_name(credential.topic)
+    else:
+        return {
+            "id": credential.get_remote_name().id,
+            "text": credential.get_remote_name().text or None,
+            "language": credential.get_remote_name().language or None,
+            "credential_id": credential.get_remote_name().credential_id or None,
+            "type": credential.get_remote_name().type or None,
+        }
+
+
+def get_topic_local_name(topic):
+    if not topic.get_local_name():
+        return {}
+    else:
+        return {
+            "id": topic.get_local_name().id,
+            "text": topic.get_local_name().text or None,
+            "language": topic.get_local_name().language or None,
+            "credential_id": topic.get_local_name().credential_id or None,
+            "type": topic.get_local_name().type or None,
+        }
+
+
+def get_topic_remote_name(topic):
+    if not topic.get_remote_name():
+        return {}
+    else:
+        return {
+            "id": topic.get_remote_name().id,
+            "text": topic.get_remote_name().text or None,
+            "language": topic.get_remote_name().language or None,
+            "credential_id": topic.get_remote_name().credential_id or None,
+            "type": topic.get_remote_name().type or None,
+        }
+
+
+def format_name(name):
+    if not name:
+        return {}
+    else:
+        return {
+            "id": name.id,
+            "text": name.text or None,
+            "language": name.language or None,
+            "credential_id": name.credential_id,
+            "type": name.type,
+        }
+
+
+def format_related_topic(related_topic):
+    if not related_topic:
+        return {}
+    else:
+        return {
+            "id": related_topic.id,
+            "source_id": related_topic.source_id,
+            "type": related_topic.type,
+            "names": [
+                format_name(name) for name in related_topic.get_active_names()
+            ],
+            "local_name": get_topic_local_name(related_topic),
+            "remote_name": get_topic_remote_name(related_topic)
+        }
+
+
+def format_credential_topic(credential):
+    return {
+        "id": credential.topic.id,
+        "source_id": credential.topic.source_id,
+        "type": credential.topic.type,
+        "local_name": get_topic_local_name(credential.topic),
+        "remote_name": get_topic_remote_name(credential.topic)
+    }

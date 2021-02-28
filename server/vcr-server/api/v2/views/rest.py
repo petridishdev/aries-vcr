@@ -14,7 +14,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from api.v2.utils import apply_custom_methods, call_agent_with_retry
+from api.v2.utils import (
+    apply_custom_methods,
+    call_agent_with_retry,
+    get_credential_local_name,
+    get_credential_remote_name,
+    get_topic_local_name,
+    get_topic_remote_name
+)
 from api.v2.models.Credential import Credential
 from api.v2.models.CredentialType import CredentialType
 from api.v2.models.Issuer import Issuer
@@ -165,9 +172,7 @@ class TopicViewSet(ReadOnlyModelViewSet):
 
         credential_sets = (
             item.credential_sets
-            # .select_related("credential_type", "topic")
             .prefetch_related(
-                # "credentials__addresses",
                 "credentials__related_topics",
                 "credentials__credential_type",
                 "credentials__topic",
@@ -175,54 +180,6 @@ class TopicViewSet(ReadOnlyModelViewSet):
             .order_by("first_effective_date")
             .all()
         )
-
-        def get_credential_local_name(credential):
-            if not credential.get_local_name():
-                return get_topic_local_name(credential.topic)
-            else:
-                return {
-                    "id": credential.get_local_name().id,
-                    "text": credential.get_local_name().text or None,
-                    "language": credential.get_local_name().language or None,
-                    "credential_id": credential.get_local_name().credential_id or None,
-                    "type": credential.get_local_name().type or None,
-                }
-
-        def get_credential_remote_name(credential):
-            if not credential.get_remote_name():
-                return get_topic_remote_name(credential.topic)
-            else:
-                return {
-                    "id": credential.get_remote_name().id,
-                    "text": credential.get_remote_name().text or None,
-                    "language": credential.get_remote_name().language or None,
-                    "credential_id": credential.get_remote_name().credential_id or None,
-                    "type": credential.get_remote_name().type or None,
-                }
-
-        def get_topic_local_name(topic):
-            if not topic.get_local_name():
-                return {}
-            else:
-                return {
-                    "id": topic.get_local_name().id,
-                    "text": topic.get_local_name().text or None,
-                    "language": topic.get_local_name().language or None,
-                    "credential_id": topic.get_local_name().credential_id or None,
-                    "type": topic.get_local_name().type or None,
-                }
-
-        def get_topic_remote_name(topic):
-            if not topic.get_remote_name():
-                return {}
-            else:
-                return { 
-                    "id": topic.get_remote_name().id,
-                    "text": topic.get_remote_name().text or None,
-                    "language": topic.get_remote_name().language or None,
-                    "credential_id": topic.get_remote_name().credential_id or None,
-                    "type": topic.get_remote_name().type or None,
-                }
 
         data = [
             {

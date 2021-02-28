@@ -16,7 +16,17 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet, GenericViewSet
 from rest_framework.views import APIView
 
-from api.v2.utils import apply_custom_methods, call_agent_with_retry
+from api.v2.utils import (
+    apply_custom_methods,
+    call_agent_with_retry,
+    get_credential_local_name,
+    get_credential_remote_name,
+    get_topic_local_name,
+    get_topic_remote_name,
+    format_name,
+    format_credential_topic,
+    format_related_topic
+)
 from api.v2.models.Credential import Credential
 from api.v2.models.CredentialType import CredentialType
 from api.v2.models.Issuer import Issuer
@@ -102,10 +112,79 @@ class CredentialTypeViewSet(ReadOnlyModelViewSet):
         return Response(lang)
 
 
-class TopicView(APIView):
+class TopicViewSet(ReadOnlyModelViewSet):
+    serializer_class = TopicSerializer
     queryset = Topic.objects.all()
 
-    def get(self, request, type, source_id):
+    @swagger_auto_schema(responses={200: ExpandedCredentialSetSerializer(many=True)})
+    @action(detail=True, url_path="credentialset", methods=["get"])
+    def list_credential_sets(self, request, pk=None):
+        item = self.get_object()
+
+        credential_sets = (
+            item.credential_sets
+            .prefetch_related(
+                "credentials__related_topics",
+                "credentials__credential_type",
+                "credentials__topic",
+            )
+            .order_by("first_effective_date")
+            .all()
+        )
+
+        data = [
+            {
+                "id": credential_set.id,
+                "create_timestamp": credential_set.create_timestamp.isoformat()
+                if credential_set.create_timestamp is not None else None,
+                "update_timestamp": credential_set.update_timestamp.isoformat()
+                if credential_set.update_timestamp is not None else None,
+                "latest_credential_id": credential_set.latest_credential_id,
+                "topic_id": credential_set.topic_id,
+                "first_effective_date": credential_set.first_effective_date.isoformat()
+                if credential_set.first_effective_date is not None else None,
+                "last_effective_date": credential_set.last_effective_date.isoformat()
+                if credential_set.last_effective_date is not None else None,
+                "credentials": [
+                    {
+                        "id": credential.id,
+                        "create_timestamp": credential.create_timestamp.isoformat()
+                        if credential.create_timestamp else None,
+                        "effective_date": credential.effective_date.isoformat()
+                        if credential.effective_date else None,
+                        "inactive": credential.inactive,
+                        "latest": credential.latest,
+                        "revoked": credential.revoked,
+                        "revoked_date": credential.revoked_date.isoformat()
+                        if credential.revoked_date else None,
+                        "credential_id": credential.credential_id,
+                        "names": [
+                            format_name(name) for name in credential.all_names
+                        ],
+                        "local_name": get_credential_local_name(credential),
+                        "remote_name": get_credential_remote_name(credential),
+                        "topic": format_credential_topic(credential),
+                        "related_topics": [
+                            format_related_topic(related_topic) for related_topic in credential.related_topics.all()
+                        ],
+                        "credential_type": {
+                            "id": credential.credential_type.id,
+                            "description": credential.credential_type.description,
+                            "issuer": IssuerSerializer(credential.credential_type.issuer).data
+                        },
+                    }
+                    for credential in credential_set.credentials.all()
+                ],
+            }
+            for credential_set in credential_sets
+        ]
+
+        return Response(data)
+
+    @swagger_auto_schema(responses={200: TopicSerializer(many=False)})
+    # Make sure that this doesn't match /topic/<pk>/credentialset or the list_credential_sets handler will not work
+    @action(detail=False, methods=["get"], url_path="(?P<type>[^/]+)/(?P<source_id>(?!credentialset)[^/]+)")
+    def read_by_type(self, request, type=None, source_id=None):
         topic = get_object_or_404(self.queryset, type=type, source_id=source_id)
         serializer = TopicSerializer(topic, many=False)
         return Response(serializer.data)

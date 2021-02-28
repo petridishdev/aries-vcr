@@ -32,10 +32,10 @@ router.register(r"issuer", rest.IssuerViewSet, "Credential Issuer")
 router.register(r"schema", rest.SchemaViewSet, "Credential Schema")
 router.register(r"credentialtype", rest.CredentialTypeViewSet, "Credential Type")
 router.register(r"credential", rest.CredentialViewSet, "Credential")
+router.register(r"topic", rest.TopicViewSet, "Topic")
 
 api_views = [
-    path("search/topic/attribute/<attribute_query>", rest.TopicAttributeView.as_view()),
-    path("topic/<type>/<source_id>", rest.TopicView.as_view()),
+    path("search/topic/attribute/<attribute_query>", rest.TopicAttributeView.as_view())
 ]
 
 # Search endpoints
